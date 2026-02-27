@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دردشة P2P بدون سيرفر</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #00f2fe, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .connection-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .panel h3 {
+            color: #4facfe;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 15px;
+            color: #fff;
+            font-family: monospace;
+            resize: none;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #00f2fe, #4facfe);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+        
+        .status.disconnected { background: #ff4757; box-shadow: 0 0 10px #ff4757; }
+        .status.connecting { background: #ffa502; animation: pulse 1s infinite; }
+        .status.connected { background: #2ed573; box-shadow: 0 0 10px #2ed573; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .chat-container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.mine {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.theirs {
+            align-self: flex-start;
+            background: rgba(255,255,255,0.1);
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message .time {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+        
+        .input-area {
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-area input {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 15px 20px;
+            border-radius: 30px;
+            color: #fff;
+            outline: none;
+        }
+        
+        .input-area button {
+            width: auto;
+            padding: 15px 30px;
+        }
+        
+        .peers-list {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        .peer-tag {
+            display: inline-block;
+            padding: 5px 15px;
+            background: rgba(79, 172, 254, 0.2);
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+        
+        .hidden { display: none !important; }
+        
+        .file-share {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00f2fe, #4facfe);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 دردشة P2P حقيقية</h1>
+            <p>اتصال مباشر بين المتصفحات - لا سيرفر، لا تتبع، كامل الخصوصية</p>
+        </div>
+        
+        <div class="connection-panel">
+            <!-- إنشاء غرفة -->
+            <div class="panel">
+                <h3>
+                    <span class="status disconnected" id="hostStatus"></span>
+                    إنشاء غرفة (المضيف)
+                </h3>
+                <button onclick="createRoom()" id="createBtn">إنشاء غرفة جديدة</button>
+                <div id="hostOffer" class="hidden" style="margin-top: 15px;">
+                    <p style="margin-bottom: 10px; font-size: 0.9em;">انسخ هذا الكود وأرسله للطرف الآخر:</p>
+                    <textarea id="offerOut" readonly onclick="this.select()"></textarea>
+                    <p style="margin: 10px 0; font-size: 0.9em;">ألصق رد الطرف الآخر هنا:</p>
+                    <textarea id="answerIn" placeholder="لصق الـ Answer هنا..."></textarea>
+                    <button onclick="acceptAnswer()">قبول الاتصال</button>
+                </div>
+            </div>
+            
+            <!-- الانضمام لغرفة -->
+            <div class="panel">
+                <h3>
+                    <span class="status disconnected" id="clientStatus"></span>
+                    الانضمام لغرفة (الضيف)
+                </h3>
+                <textarea id="offerIn" placeholder="لصق كود الدعوة هنا..."></textarea>
+                <button onclick="joinRoom()" id="joinBtn">الانضمام للغرفة</button>
+                <div id="clientAnswer" class="hidden" style="margin-top: 15px;">
+                    <p style="margin-bottom: 10px; font-size: 0.9em;">انسخ هذا الرد وأرسله للمضيف:</p>
+                    <textarea id="answerOut" readonly onclick="this.select()"></textarea>
+                </div>
+            </div>
+        </div>
+        
+        <!-- واجهة الدردشة -->
+        <div id="chatInterface" class="hidden">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <div>
+                        <span class="status connected"></span>
+                        <strong>متصل مباشرة</strong>
+                        <span id="connectionType" style="margin-right: 10px; opacity: 0.7;"></span>
+                    </div>
+                    <div class="peers-list" id="peersList"></div>
+                </div>
+                
+                <div class="messages" id="messages"></div>
+                
+                <div class="input-area">
+                    <input type="file" id="fileInput" style="display: none;" onchange="sendFile()">
+                    <button onclick="document.getElementById('fileInput').click()" title="إرسال ملف">📎</button>
+                    <input type="text" id="messageInput" placeholder="اكتب رسالتك..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button onclick="sendMessage()">إرسال</button>
+                </div>
+            </div>
+            
+            <div class="file-share" id="fileShare">
+                <strong>📤 مشاركة الملفات المباشرة</strong>
+                <div id="fileProgress" class="hidden">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p id="progressText" style="margin-top: 5px; font-size: 0.9em;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== محرك WebRTC الكامل ====================
+        
+        let pc = null;
+        let dc = null; // Data Channel
+        let isHost = false;
+        let localId = Math.random().toString(36).substr(2, 9);
+        let peers = new Map();
+        
+        // إعدادات ICE (STUN فقط للمساعدة في اختراق NAT)
+        const config = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+        
+        // ==================== إنشاء الغرفة (المضيف) ====================
+        
+        async function createRoom() {
+            isHost = true;
+            document.getElementById('createBtn').disabled = true;
+            document.getElementById('joinBtn').disabled = true;
+            updateStatus('hostStatus', 'connecting');
+            
+            pc = new RTCPeerConnection(config);
+            
+            // إنشاء قناة البيانات
+            dc = pc.createDataChannel('chat', {
+                ordered: true,
+                maxRetransmits: 3
+            });
+            setupDataChannel(dc, 'host');
+            
+            // جمع ICE candidates
+            const candidates = [];
+            pc.onicecandidate = (e) => {
+                if (e.candidate) candidates.push(e.candidate);
+            };
+            
+            // إنشاء العرض
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            // انتظر ICE gathering
+            await new Promise(resolve => {
+                pc.onicegatheringstatechange = () => {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                };
+                setTimeout(resolve, 2000); // timeout أمان
+            });
+            
+            // عرض الـ Offer للنسخ
+            const offerData = {
+                type: 'offer',
+                sdp: pc.localDescription,
+                candidates: candidates,
+                id: localId
+            };
+            
+            document.getElementById('offerOut').value = btoa(JSON.stringify(offerData));
+            document.getElementById('hostOffer').classList.remove('hidden');
+        }
+        
+        // ==================== الانضمام للغرفة (الضيف) ====================
+        
+        async function joinRoom() {
+            const offerStr = document.getElementById('offerIn').value.trim();
+            if (!offerStr) return alert('الرجاء لصق كود الدعوة');
+            
+            try {
+                const offerData = JSON.parse(atob(offerStr));
+                
+                document.getElementById('joinBtn').disabled = true;
+                document.getElementById('createBtn').disabled = true;
+                updateStatus('clientStatus', 'connecting');
+                
+                pc = new RTCPeerConnection(config);
+                
+                // استقبال قناة البيانات
+                pc.ondatachannel = (e) => {
+                    dc = e.channel;
+                    setupDataChannel(dc, 'guest');
+                };
+                
+                const candidates = [];
+                pc.onicecandidate = (e) => {
+                    if (e.candidate) candidates.push(e.candidate);
+                };
+                
+                // تعيين الـ Offer
+                await pc.setRemoteDescription(new RTCSessionDescription(offerData.sdp));
+                
+                // إضافة ICE candidates
+                offerData.candidates?.forEach(c => {
+                    pc.addIceCandidate(new RTCIceCandidate(c));
+                });
+                
+                // إنشاء الـ Answer
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const answerData = {
+                    type: 'answer',
+                    sdp: pc.localDescription,
+                    candidates: candidates,
+                    id: localId
+                };
+                
+                document.getElementById('answerOut').value = btoa(JSON.stringify(answerData));
+                document.getElementById('clientAnswer').classList.remove('hidden');
+                
+            } catch (e) {
+                alert('خطأ في قراءة كود الدعوة: ' + e.message);
+            }
+        }
+        
+        // ==================== قبول الاتصال ====================
+        
+        async function acceptAnswer() {
+            const answerStr = document.getElementById('answerIn').value.trim();
+            if (!answerStr) return;
+            
+            try {
+                const answerData = JSON.parse(atob(answerStr));
+                await pc.setRemoteDescription(new RTCSessionDescription(answerData.sdp));
+                
+                answerData.candidates?.forEach(c => {
+                    pc.addIceCandidate(new RTCIceCandidate(c));
+                });
+                
+            } catch (e) {
+                alert('خطأ: ' + e.message);
+            }
+        }
+        
+        // ==================== إعداد قناة البيانات ====================
+        
+        function setupDataChannel(channel, role) {
+            channel.onopen = () => {
+                console.log('✅ DataChannel مفتوح!');
+                updateStatus(isHost ? 'hostStatus' : 'clientStatus', 'connected');
+                document.getElementById('chatInterface').classList.remove('hidden');
+                document.getElementById('connectionType').textContent = 
+                    channel.maxRetransmits !== null ? 'موثوق (Reliable)' : 'سريع (Unreliable)';
+                
+                // إرسال معلومات الذات
+                sendSignal({ type: 'peer-info', id: localId, role: role });
+            };
+            
+            channel.onmessage = (e) => {
+                handleMessage(JSON.parse(e.data));
+            };
+            
+            channel.onclose = () => {
+                updateStatus(isHost ? 'hostStatus' : 'clientStatus', 'disconnected');
+                addSystemMessage('⚠️ انقطع الاتصال');
+            };
+        }
+        
+        // ==================== معالجة الرسائل ====================
+        
+        function handleMessage(data) {
+            switch(data.type) {
+                case 'chat':
+                    addMessage(data.content, false, data.timestamp);
+                    break;
+                    
+                case 'peer-info':
+                    peers.set(data.id, data);
+                    updatePeersList();
+                    addSystemMessage(`👤 انضم للمحادثة: ${data.id}`);
+                    break;
+                    
+                case 'file-start':
+                    receiveFileStart(data);
+                    break;
+                    
+                case 'file-chunk':
+                    receiveFileChunk(data);
+                    break;
+                    
+                case 'file-end':
+                    receiveFileEnd(data);
+                    break;
+            }
+        }
+        
+        function sendSignal(data) {
+            if (dc && dc.readyState === 'open') {
+                dc.send(JSON.stringify(data));
+            }
+        }
+        
+        // ==================== واجهة الدردشة ====================
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if (!text || !dc || dc.readyState !== 'open') return;
+            
+            const msg = {
+                type: 'chat',
+                content: text,
+                timestamp: new Date().toLocaleTimeString('ar-SA')
+            };
+            
+            sendSignal(msg);
+            addMessage(text, true, msg.timestamp);
+            input.value = '';
+        }
+        
+        function addMessage(text, isMine, time) {
+            const div = document.createElement('div');
+            div.className = `message ${isMine ? 'mine' : 'theirs'}`;
+            div.innerHTML = `
+                ${escapeHtml(text)}
+                <div class="time">${time}</div>
+            `;
+            document.getElementById('messages').appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function addSystemMessage(text) {
+            const div = document.createElement('div');
+            div.style.cssText = 'text-align: center; color: #888; margin: 10px 0; font-size: 0.9em;';
+            div.textContent = text;
+            document.getElementById('messages').appendChild(div);
+        }
+        
+        // ==================== مشاركة الملفات (P2P مباشر) ====================
+        
+        let fileBuffer = [];
+        let fileMetadata = null;
+        let receivedSize = 0;
+        
+        async function sendFile() {
+            const input = document.getElementById('fileInput');
+            const file = input.files[0];
+            if (!file || !dc) return;
+            
+            const chunkSize = 16384; // 16KB لكل قطعة
+            const buffer = await file.arrayBuffer();
+            
+            // إرسال البداية
+            sendSignal({
+                type: 'file-start',
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
+            
+            // إرسال القطع
+            let offset = 0;
+            document.getElementById('fileProgress').classList.remove('hidden');
+            
+            while (offset < buffer.byteLength) {
+                const chunk = buffer.slice(offset, offset + chunkSize);
+                const base64 = arrayBufferToBase64(chunk);
+                
+                sendSignal({
+                    type: 'file-chunk',
+                    data: base64
+                });
+                
+                offset += chunkSize;
+                
+                // تحديث التقدم
+                const progress = (offset / buffer.byteLength) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressText').textContent = 
+                    `جاري الإرسال... ${Math.round(progress)}%`;
+                
+                // إعطاء الوقت للـ Event Loop
+                await new Promise(r => setTimeout(r, 0));
+            }
+            
+            // إنهاء
+            sendSignal({ type: 'file-end' });
+            document.getElementById('progressText').textContent = '✅ تم الإرسال!';
+            setTimeout(() => {
+                document.getElementById('fileProgress').classList.add('hidden');
+                document.getElementById('progressFill').style.width = '0%';
+            }, 2000);
+        }
+        
+        function receiveFileStart(data) {
+            fileMetadata = data;
+            fileBuffer = [];
+            receivedSize = 0;
+            addSystemMessage(`📥 جاري استقبال: ${data.name} (${formatBytes(data.size)})`);
+            document.getElementById('fileProgress').classList.remove('hidden');
+        }
+        
+        function receiveFileChunk(data) {
+            const chunk = base64ToArrayBuffer(data.data);
+            fileBuffer.push(chunk);
+            receivedSize += chunk.byteLength;
+            
+            const progress = (receivedSize / fileMetadata.size) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressText').textContent = 
+                `جاري الاستقبال... ${Math.round(progress)}%`;
+        }
+        
+        function receiveFileEnd() {
+            const blob = new Blob(fileBuffer, { type: fileMetadata.type });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileMetadata.name;
+            a.textContent = `📎 ${fileMetadata.name} (${formatBytes(fileMetadata.size)})`;
+            a.style.cssText = 'display: block; margin: 10px; color: #4facfe; text-decoration: none;';
+            
+            const div = document.createElement('div');
+            div.className = 'message theirs';
+            div.appendChild(a);
+            document.getElementById('messages').appendChild(div);
+            
+            document.getElementById('progressText').textContent = '✅ تم الاستقبال!';
+            setTimeout(() => {
+                document.getElementById('fileProgress').classList.add('hidden');
+            }, 2000);
+        }
+        
+        // ==================== أدوات مساعدة ====================
+        
+        function updateStatus(id, state) {
+            const el = document.getElementById(id);
+            el.className = 'status ' + state;
+        }
+        
+        function updatePeersList() {
+            const list = document.getElementById('peersList');
+            list.innerHTML = Array.from(peers.values()).map(p => 
+                `<span class="peer-tag">${p.id} (${p.role})</span>`
+            ).join('');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+        
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+        
+        // ==================== شبكة متعددة الأطراف (Mesh) ====================
+        
+        // للتوسع: يمكن ربط عدة peers معاً بإنشاء DataChannel لكل اتصال
+        // وهو ما يُعرف بـ "Mesh Network" حيث كل peer متصل مع الجميع
+        
+        function createMeshConnection(peerId) {
+            // هذه الدالة يمكن استخدامها لإضافة أطراف ثالثة
+            // عن طريق إنشاء RTCPeerConnection جديد لكل peer
+            const newPc = new RTCPeerConnection(config);
+            // ... منطق إضافي لربط multiple peers
+        }
+    </script>
+</body>
+</html>
